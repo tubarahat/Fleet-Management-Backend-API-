@@ -159,3 +159,42 @@ const deleteTrip = async (req, res) => {
 };
 
 module.exports = { createTrip, endTrip, getTripById, updateTrip, deleteTrip };
+
+const endTrip = async (req, res) => {
+    const { tripId } = req.params;
+
+    try {
+        // 1. Fetch trip and the rate of the associated vehicle
+        const { data: trip, error: tError } = await supabase
+            .from('trips')
+            .select('distance_km, vehicle_id, vehicles(rate_per_km)')
+            .eq('id', tripId)
+            .single();
+
+        if (tError || !trip) return res.status(404).json({ error: "Trip not found" });
+
+        // 2. Calculate tripCost
+        const calculatedCost = trip.distance_km * trip.vehicles.rate_per_km;
+
+        // 3. Update trip: isCompleted -> true and store cost
+        const { error: updateError } = await supabase
+            .from('trips')
+            .update({ isCompleted: true, tripCost: calculatedCost })
+            .eq('id', tripId);
+
+        if (updateError) throw updateError;
+
+        // 4. Set vehicle isAvailable back to true
+        await supabase
+            .from('vehicles')
+            .update({ isAvailable: true })
+            .eq('id', trip.vehicle_id);
+
+        res.status(200).json({ 
+            message: "Trip ended successfully", 
+            tripCost: calculatedCost 
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
