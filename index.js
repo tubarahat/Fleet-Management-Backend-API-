@@ -14,3 +14,6 @@ app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
 
+// index.js (Update)
+const vehicleRoutes = require('./routes/vehicle.routes');
+app.use('/api/vehicles', vehicleRoutes);
