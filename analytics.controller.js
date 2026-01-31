@@ -31,3 +31,27 @@ const getSystemAnalytics = async (req, res) => {
 
 module.exports = { getSystemAnalytics };
 
+const getAnalytics = async (req, res) => {
+    try {
+        const fetchCount = (table, query = {}) => 
+            supabase.from(table).select('*', { count: 'exact', head: true }).match(query);
+
+        const [cust, own, drv, veh, trp] = await Promise.all([
+            fetchCount('users', { role: 'customer' }),
+            fetchCount('users', { role: 'owner' }),
+            fetchCount('users', { role: 'driver' }),
+            fetchCount('vehicles'),
+            fetchCount('trips')
+        ]);
+
+        res.status(200).json({
+            total_customers: cust.count,
+            total_owners: own.count,
+            total_drivers: drv.count,
+            total_vehicles: veh.count,
+            total_trips: trp.count
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
