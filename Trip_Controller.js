@@ -130,6 +130,9 @@ const endTrip = async (req, res) => {
             .update({ isCompleted: true, tripCost: finalCost })
             .eq('id', tripId);
 
+
+        
+
         if (updateError) throw updateError;
 
         // 4. Update vehicle: isAvailable -> true
@@ -194,6 +197,36 @@ const endTrip = async (req, res) => {
             message: "Trip ended successfully", 
             tripCost: calculatedCost 
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+
+const endTrip = async (req, res) => {
+    const { tripId } = req.params;
+
+    try {
+        const { data: trip, error: tError } = await supabase
+            .from('trips')
+            .select('distance_km, vehicle_id, vehicles(rate_per_km)')
+            .eq('id', tripId)
+            .single();
+
+        if (tError || !trip) return res.status(404).json({ error: "Trip not found" });
+
+        const calculatedCost = trip.distance_km * trip.vehicles.rate_per_km;
+
+        // Requirement: isCompleted -> true, calculate tripCost
+        await supabase.from('trips').update({ 
+            isCompleted: true, 
+            tripCost: calculatedCost 
+        }).eq('id', tripId);
+
+        // Requirement: vehicle isAvailable -> true
+        await supabase.from('vehicles').update({ isAvailable: true }).eq('id', trip.vehicle_id);
+
+        res.status(200).json({ message: "Trip ended", tripCost: calculatedCost });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
